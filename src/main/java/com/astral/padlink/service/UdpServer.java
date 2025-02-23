@@ -43,20 +43,25 @@ public class UdpServer {
             String action = parts[0]; // 操作类型，如 move、click、right 等
             double param1 = Double.parseDouble(parts[1]); // 第一个参数
             double param2 = Double.parseDouble(parts[2]); // 第二个参数
+            int param3 = Integer.parseInt(parts[3]); // 第二个参数
 
             // 根据操作类型调用AppController中的方法
             switch (action) {
                 case "move":
-                    AppController.get(param1, param2);
+                    boolean startBoolean = Boolean.parseBoolean(parts[4]);
+                    AppController.get(param1, param2,param3,startBoolean);
                     break;
                 case "click":
-                    AppController.click(param1, param2);
+                    AppController.click(param1, param2,param3);
                     break;
                 case "right":
-                    AppController.right(param1, param2);
+                    AppController.right(param1, param2,param3);
                     break;
                 case "dragY":
-                    AppController.dragY(param1);
+                    AppController.dragY(param1,param3);
+                    break;
+                case "tabwin":
+                    AppController.tabwin(param3);
                     break;
                 default:
                     System.out.println("Unknown action: " + action);
