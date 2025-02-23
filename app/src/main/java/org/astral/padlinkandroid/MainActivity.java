@@ -39,7 +39,8 @@ public class MainActivity extends AppCompatActivity {
     private MouseController mouseController;
     private String host = "http://192.168.230.177:8081";
     private String udphost = "192.168.230.177";
-    private boolean udp = true;
+    private int udpport = 8081;
+    private boolean udp = false;
     private static final String ACTION_USB_PERMISSION = "org.astral.padlinkandroid.USB_PERMISSION";
     private SharedPreferences prefs;
     private boolean isSettingActivityLaunched = false; // 标志位
@@ -70,10 +71,22 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "默认主机地址: " + host, Toast.LENGTH_SHORT).show();
             editor.apply();
         }
+        if(prefs.getBoolean("udp", false)) {
+            udphost = prefs.getString("udphost", "192.168.230.177");
+            udp = prefs.getBoolean("udp", false);
+            udpport = prefs.getInt("udpport", 8081);
+            Toast.makeText(this, "使用UDP连接 UDP 主机: " + udphost + ", 端口: " + udpport, Toast.LENGTH_SHORT).show();
+        }else {
+            Toast.makeText(this, "使用TCP连接 默认主机地址: " + host, Toast.LENGTH_SHORT).show();
+        }
+        usbInitial();
+    }
+
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+    private void usbInitial() {
         UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
         IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
         registerReceiver(usbPermissionReceiver, filter);
-
         Log.d("USB", "USB Manager: " + usbManager);
         Log.d("USB", "------------------------------------------- ");
         if (usbManager == null) {
@@ -88,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d("USB", "Device: " + device.getDeviceName());
         }
     }
+
     private final BroadcastReceiver usbPermissionReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -181,7 +195,6 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                     break;
-
                 }
                 // 计算移动距离
                 float deltaX = event.getX() - startX;
@@ -202,7 +215,7 @@ public class MainActivity extends AppCompatActivity {
                             }
                             try {
                                 if(udp) {
-                                    sendUdp("dragY:" + yPercent + ":1", udphost, 9876);
+                                    sendUdp("dragY:" + yPercent + ":1", udphost, udpport);
                                 }else {sendDragY(yPercent);}
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
@@ -213,11 +226,6 @@ public class MainActivity extends AppCompatActivity {
                             break;
                         }
                     }
-
-
-                        // 获取当前时间
-
-
                     // 判断是否超过时间间隔
                     if (currentTime - lastMoveTime >= MOVE_INTERVAL) {
                         // 计算百分比
@@ -228,7 +236,7 @@ public class MainActivity extends AppCompatActivity {
                         new Thread(() -> {
                             try {
                                 if(udp) {
-                                    sendUdp("move:" + xPercent + ":" + yPercent , udphost, 9876);
+                                    sendUdp("move:" + xPercent + ":" + yPercent , udphost, udpport);
                                 }else {
                                     sendMove(xPercent, yPercent);
                                 }
@@ -243,7 +251,9 @@ public class MainActivity extends AppCompatActivity {
 
                     Log.d(TAG, "Dragging");
                 }
+                Log.d(TAG, "Movement" + pointerIds.size());
                 break;
+
 /**
  * 这是点击检测
  */
@@ -271,7 +281,7 @@ public class MainActivity extends AppCompatActivity {
                         new Thread(() -> {
                             try {
                                 if(udp) {
-                                    sendUdp("right:" + xPercent + ":" + yPercent, udphost, 9876);
+                                    sendUdp("right:" + xPercent + ":" + yPercent, udphost, udpport);
                                 }else {
                                     sendRight(xPercent, yPercent);
                                 }
@@ -311,7 +321,7 @@ public class MainActivity extends AppCompatActivity {
                         new Thread(() -> {
                             try {
                                 if(udp) {
-                                    sendUdp("click:" + xPercent + ":" + yPercent, udphost, 9876);
+                                    sendUdp("click:" + xPercent + ":" + yPercent, udphost, udpport);
                                 }else {
                                     sendClick(xPercent, yPercent);
                                 }
@@ -339,6 +349,18 @@ public class MainActivity extends AppCompatActivity {
                 break;
 
             case MotionEvent.ACTION_CANCEL:
+                if (pointerIds.size() == 4) {
+                    if (udp) {
+                        sendUdp("tabwin:" + 0 + ":" + 0, udphost, udpport);
+                    } else {
+                        try {
+                            sendTabwin();
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    Log.d(TAG, "tabwin");
+                }
                 // 清除所有触摸点
                 touchPointView.clearAllTouchPoints();
                 isNoTouch = true; // 标记为没有触摸
@@ -442,6 +464,23 @@ public class MainActivity extends AppCompatActivity {
     public void sendWindowLeft() throws IOException {
         Request request = new Request.Builder()
                 .url(host+"/windowleft")
+                .build();
+        client.newCall(request).enqueue(new okhttp3.Callback() {
+
+            @Override
+            public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+
+            }
+
+            @Override
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+
+            }
+        });
+    }
+    public void sendTabwin() throws IOException {
+        Request request = new Request.Builder()
+                .url(host+"/tabwin")
                 .build();
         client.newCall(request).enqueue(new okhttp3.Callback() {
 
