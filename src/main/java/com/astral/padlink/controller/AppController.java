@@ -10,7 +10,7 @@ import java.awt.event.KeyEvent;
 @RestController
 public class AppController {
     @GetMapping("/move")
-    public String get(double x1,double y1) throws AWTException {
+    public static String get(double x1,double y1) throws AWTException {
         System.setProperty("java.awt.headless", "false");
         System.out.println("x1:"+x1+"y1:"+y1);
         // 获取屏幕尺寸
@@ -27,7 +27,7 @@ public class AppController {
         return "Hello World!";
     }
     @GetMapping("/click")
-    public String click(double x1,double y1) throws AWTException {
+    public static String click(double x1,double y1) throws AWTException {
         System.setProperty("java.awt.headless", "false");
         System.out.println("x1:"+x1+"y1:"+y1);
         // 获取屏幕尺寸
@@ -46,7 +46,7 @@ public class AppController {
         return "Hello World!";
     }
     @GetMapping("/right")
-    public String right(double x1,double y1) throws AWTException {
+    public static String right(double x1,double y1) throws AWTException {
         System.setProperty("java.awt.headless", "false");
         System.out.println("x1:"+x1+"y1:"+y1);
         // 获取屏幕尺寸
@@ -66,7 +66,7 @@ public class AppController {
         return "Hello World!";
     }
     @GetMapping("/windowRight")
-    public String windowRight() throws AWTException {
+    public static String windowRight() throws AWTException {
         System.setProperty("java.awt.headless", "false");
         Robot robot = new Robot();
 
@@ -79,7 +79,7 @@ public class AppController {
         return "Switched to next window!";
     }
     @GetMapping("/windowLeft")
-    public String windowLeft() throws AWTException {
+    public static String windowLeft() throws AWTException {
         System.setProperty("java.awt.headless", "false");
         Robot robot = new Robot();
 
@@ -95,12 +95,12 @@ public class AppController {
     }
 
     @GetMapping("/dragY")
-    public String dragY(double y) throws AWTException {
+    public static String dragY(double y) throws AWTException {
         System.setProperty("java.awt.headless", "false");
         System.out.println("y:" + y);
 
         // 根据 y 的值计算滚动速度
-        int scrollAmount = (int) (y * 3); // 将 y 映射为滚动速度（1 到 10）
+        int scrollAmount = (int) (y * y * 4); // 将 y 映射为滚动速度（1 到 10）
         if (scrollAmount < 1) {
             scrollAmount = 1; // 最小滚动速度为 1
         }
