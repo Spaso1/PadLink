@@ -22,7 +22,7 @@ public class UdpServer {
                 socket.receive(packet);
 
                 String receivedMessage = new String(packet.getData(), 0, packet.getLength());
-                System.out.println("Received message: " + receivedMessage);
+                //System.out.println("Received message: " + receivedMessage);
 
                 // 解析并处理消息
                 processMessage(receivedMessage);
@@ -52,7 +52,11 @@ public class UdpServer {
                     AppController.get(param1, param2,param3,startBoolean);
                     break;
                 case "click":
-                    AppController.click(param1, param2,param3);
+                    if(param3==4) {
+                        AppController.click(param1, param2,param3,Boolean.parseBoolean(parts[4]));
+                    }else {
+                        AppController.click(param1, param2,param3,false);
+                    }
                     break;
                 case "right":
                     AppController.right(param1, param2,param3);

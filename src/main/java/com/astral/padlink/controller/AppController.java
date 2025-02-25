@@ -14,6 +14,7 @@ public class AppController {
     private static int may_old_x = 0;
     private static int may_old_y = 0;
     private static int method1 = 0;
+    public static long size = 0;
     @GetMapping("/move")
     public static String get(double x1,double y1,int method,boolean startBoolean) throws AWTException {
         System.setProperty("java.awt.headless", "false");
@@ -40,6 +41,8 @@ public class AppController {
         }
         //System.out.println("实际坐标: (" + actualX + ", " + actualY + ")");
         Robot robot = new Robot();
+        System.out.println(method + ":" + startBoolean);
+
         if(method==2) {
             //获取目前鼠标位置
             int x = MouseInfo.getPointerInfo().getLocation().x;
@@ -73,12 +76,44 @@ public class AppController {
         }else {
             robot.mouseMove(actualX, actualY);
         }
+        if(method==4 && startBoolean) {
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        }
+        if(startBoolean) {
+            new Thread(() -> {
+                long temp = 0;
+                int s = 0;
+                while (true) {
+                    try {
+                        System.out.println("size:"+size);
+                        if(size==temp) {
+                            s++;
+                        }else {
+                            temp = size;
+                        }
+                        if(s==3) {
+                            size =0;
+                            Robot robot1 = new Robot();
+                            robot1.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+                            break;
+                        }
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    } catch (AWTException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }).start();
+        }
+        size ++;
         // 假设 x1 和 y1 是百分比值，例如 0.5 表示 50%
         return "Hello World!";
     }
     @GetMapping("/click")
-    public static String click(double x1,double y1,int method) throws AWTException {
+    public static String click(double x1,double y1,int method,boolean startBoolean) throws AWTException {
         System.setProperty("java.awt.headless", "false");
+
         System.out.println("x1:"+x1+"y1:"+y1);
         // 获取屏幕尺寸
 
@@ -88,11 +123,12 @@ public class AppController {
         int actualX = (int) (screenWidth * x1);
         int actualY = (int) (screenHeight * y1);
 
-        System.out.println("实际坐标: (" + actualX + ", " + actualY + ")");
+        System.out.println("实际坐标: (" + actualX + ", " + actualY + ")" + startBoolean);
         Robot robot = new Robot();
         if(method==0) {
             robot.mouseMove(actualX, actualY);
         }
+        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
         robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
         // 假设 x1 和 y1 是百分比值，例如 0.5 表示 50%
@@ -198,7 +234,6 @@ public class AppController {
         }
         return "tabwin";
     }
-
     public static int squarePreserveSign(int number) {
         // 保存原始数的符号
         int sign = (int) Math.signum(number);
