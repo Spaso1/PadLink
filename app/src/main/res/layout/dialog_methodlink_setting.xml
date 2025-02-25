@@ -1,0 +1,68 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content" xmlns:app="http://schemas.android.com/apk/res-auto"
+              android:orientation="vertical"
+              android:background="@color/black"
+              app:layout_constraintCircleRadius="10dp"
+              android:padding="16dp">
+
+    <RadioGroup
+            android:id="@+id/connectionTypeGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+        <RadioButton
+                android:id="@+id/aRadioButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="模式 0" />
+
+        <RadioButton
+                android:id="@+id/bRadioButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="模式 1" />
+        <RadioButton
+                android:id="@+id/cRadioButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="模式 2" />
+        <RadioButton
+                android:id="@+id/dRadioButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="模式 3" />
+        <RadioButton
+                android:id="@+id/eRadioButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="模式 4" />
+    </RadioGroup>
+    <TextView android:layout_width="match_parent" android:layout_height="match_parent" android:id="@+id/a" android:text="模式 0 , 设备点哪里,鼠标移动到哪里 " android:visibility="gone"/>
+    <TextView android:layout_width="match_parent" android:layout_height="match_parent" android:id="@+id/b" android:text="模式 1 , 设备点哪里,鼠标移动到哪里,点击,双击除外" android:visibility="gone"/>
+    <TextView android:layout_width="match_parent" android:layout_height="match_parent" android:id="@+id/c" android:text="模式 2 , 设备触摸点移动变为屏幕鼠标相对位置移动,使用平方加速 " android:visibility="gone"/>
+    <TextView android:layout_width="match_parent" android:layout_height="match_parent" android:id="@+id/d" android:text="模式 3 , 设备触摸点移动变为屏幕鼠标相对位置移动,线性移动 " android:visibility="gone"/>
+    <TextView android:layout_width="match_parent" android:layout_height="match_parent" android:id="@+id/e" android:text="模式 4 , 数位板模式 " android:visibility="gone"/>
+
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal">
+        <Button
+                android:id="@+id/cancelButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="取消"
+                android:textColor="?attr/colorPrimary"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
+        <Button
+                android:id="@+id/confirmButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="确认"
+                android:textColor="?attr/colorPrimary"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:layout_marginStart="8dp" />
+    </LinearLayout>
+
+</LinearLayout>

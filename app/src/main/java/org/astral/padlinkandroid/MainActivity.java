@@ -21,7 +21,6 @@ import java.net.InetAddress;
 import java.util.*;
 
 public class MainActivity extends AppCompatActivity {
-
     private static final String TAG = "MultiTouchActivity";
     private TouchPointView touchPointView; // 自定义View
 
@@ -44,13 +43,14 @@ public class MainActivity extends AppCompatActivity {
     private static final String ACTION_USB_PERMISSION = "org.astral.padlinkandroid.USB_PERMISSION";
     private SharedPreferences prefs;
     private boolean isSettingActivityLaunched = false; // 标志位
-
-
+    private int method = 0;
+    private boolean startBoolean = true;
     @SuppressLint({"MissingInflatedId", "UnspecifiedRegisterReceiverFlag"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        startBoolean = true;
         client = new OkHttpClient();
         back = findViewById(R.id.back);
         pointerIds = new HashMap<>();
@@ -71,13 +71,17 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "默认主机地址: " + host, Toast.LENGTH_SHORT).show();
             editor.apply();
         }
+        method = prefs.getInt("method", 0);
+        Toast.makeText(this, "操作模式: " + method, Toast.LENGTH_SHORT).show();
         if(prefs.getBoolean("udp", false)) {
             udphost = prefs.getString("udphost", "192.168.230.177");
             udp = prefs.getBoolean("udp", false);
             udpport = prefs.getInt("udpport", 8081);
-            Toast.makeText(this, "使用UDP连接 UDP 主机: " + udphost + ", 端口: " + udpport, Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, "使用UDP连接 UDP 主机: " + udphost + ", 端口: " + udpport, Toast.LENGTH_SHORT).show();
+            Log.d("UDP", "UDP 主机: " + udphost + ", 端口: " + udpport);
         }else {
-            Toast.makeText(this, "使用TCP连接 默认主机地址: " + host, Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, "使用TCP连接 默认主机地址: " + host, Toast.LENGTH_SHORT).show();
+            Log.d("TCP", "默认主机地址: " + host);
         }
         usbInitial();
     }
@@ -88,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
         IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
         registerReceiver(usbPermissionReceiver, filter);
         Log.d("USB", "USB Manager: " + usbManager);
-        Log.d("USB", "------------------------------------------- ");
+        Log.d("USB", "-------------------------------------------");
         if (usbManager == null) {
             Log.d("USB_DEVICE", "USB Host mode is not supported on this device.");
         } else {
@@ -143,215 +147,28 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "Pointer ID: " + pointerId +
                     ", X: " + x + ", Y: " + y);
         }
-
         // 根据触摸事件类型进行处理
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
-                // 如果没有触摸后再次触摸，清除历史记录
-                if (isNoTouch) {
-                    touchPointView.clearHistoryPoints();
-                    isNoTouch = false;
-                }
-                // 记录按下时的初始位置
-                startX = event.getX();
-                startY = event.getY();
-                isDragging = false;
-                Log.d(TAG, "Pointer down");
+                ACTION_DOWN(event);
                 break;
 /**
  * 这是移动检测
  */
             case MotionEvent.ACTION_MOVE:
-                if (pointerCount == 3) {
-                    float[] xPositions = new float[3];
-                    float[] yPositions = new float[3];
-                    for (int i = 0; i < 3; i++) {
-                        xPositions[i] = event.getX(i);
-                        yPositions[i] = event.getY(i);
-                    }
-
-                    float deltaX = xPositions[0] - startX;
-                    float deltaY = yPositions[0] - startY;
-
-                    if (Math.abs(deltaX) > DRAG_THRESHOLD) {
-                        if (deltaX > 0) {
-                            // 向右滑动
-                            new Thread(() -> {
-                                try {
-                                    sendWindowRight();
-                                } catch (IOException e) {
-                                    Log.e(TAG, "Network request failed", e);
-                                }
-                            }).start();
-                        } else {
-                            // 向左滑动
-                            new Thread(() -> {
-                                try {
-                                    sendWindowLeft();
-                                } catch (IOException e) {
-                                    Log.e(TAG, "Network request failed", e);
-                                }
-                            }).start();
-                        }
-                    }
-                    break;
-                }
-                // 计算移动距离
-                float deltaX = event.getX() - startX;
-                float deltaY = event.getY() - startY;
-                float distance = (float) Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-                // 判断是否拖动
-                if (distance > DRAG_THRESHOLD) {
-
-                    long currentTime = System.currentTimeMillis();
-
-                    if (currentTime - lastMoveTime >= MOVE_INTERVAL) {
-                        isDragging = true;
-                        if (pointerIds.size() == 2) {
-                            double yPercent = event.getY() / back.getHeight();
-                            if (deltaY > 0) {
-                                yPercent = -yPercent;
-                            }
-                            try {
-                                if(udp) {
-                                    sendUdp("dragY:" + yPercent + ":1", udphost, udpport);
-                                }else {sendDragY(yPercent);}
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                            pointerIds.clear();
-                            lastMoveTime = currentTime;
-
-                            break;
-                        }
-                    }
-                    // 判断是否超过时间间隔
-                    if (currentTime - lastMoveTime >= MOVE_INTERVAL) {
-                        // 计算百分比
-                        double xPercent = event.getX() / back.getWidth();
-                        double yPercent = event.getY() / back.getHeight();
-
-                        // 在子线程中执行网络请求
-                        new Thread(() -> {
-                            try {
-                                if(udp) {
-                                    sendUdp("move:" + xPercent + ":" + yPercent , udphost, udpport);
-                                }else {
-                                    sendMove(xPercent, yPercent);
-                                }
-                            } catch (IOException e) {
-                                Log.e(TAG, "Network request failed", e);
-                            }
-                        }).start();
-
-                        // 更新上一次调用 sendMove 的时间
-                        lastMoveTime = currentTime;
-                    }
-
-                    Log.d(TAG, "Dragging");
-                }
-                Log.d(TAG, "Movement" + pointerIds.size());
+                ACTION_MOVE(event, pointerCount);
                 break;
-
 /**
  * 这是点击检测
  */
             case MotionEvent.ACTION_UP:
-                Log.d(TAG, "Pointer up" + pointerIds.size());
-                if (pointerIds.size() == 2) {
-                    float finger1X = Objects.requireNonNull(pointerIds.get(0))[0];
-                    float finger1Y = Objects.requireNonNull(pointerIds.get(0))[1];
-                    float finger2X = Objects.requireNonNull(pointerIds.get(1))[0];
-                    float finger2Y = Objects.requireNonNull(pointerIds.get(1))[1];
-
-                    // 计算两个手指之间的距离
-                    float distance2 = (float) Math.sqrt(
-                            Math.pow(finger1X - finger2X, 2) +
-                                    Math.pow(finger1Y - finger2Y, 2)
-                    );
-                    Log.d(TAG, "Distance: " + distance2);
-                    // 如果距离小于阈值（例如 50 像素），则认为是两个手指靠近点击
-                    if (distance2 < 250) {
-                        // 计算中心点坐标
-                        double xPercent = (Objects.requireNonNull(pointerIds.get(0))[0] + Objects.requireNonNull(pointerIds.get(1))[0]) / 2 / back.getWidth();
-                        double yPercent = (Objects.requireNonNull(pointerIds.get(1))[1] + Objects.requireNonNull(pointerIds.get(1))[1]) / 2 / back.getHeight();
-
-                        // 在子线程中执行 sendRight
-                        new Thread(() -> {
-                            try {
-                                if(udp) {
-                                    sendUdp("right:" + xPercent + ":" + yPercent, udphost, udpport);
-                                }else {
-                                    sendRight(xPercent, yPercent);
-                                }
-                                Log.d(TAG, "Right Clicked");
-                            } catch (IOException e) {
-                                Log.e(TAG, "Network request failed", e);
-                            }
-                        }).start();
-                    }
-                    if(isNoTouch) {
-                        touchPointView.clearHistoryPoints();
-                        isNoTouch = false;
-                        pointerIds = new HashMap<>();
-                    }
-                    int pointerId = event.getPointerId(event.getActionIndex());
-                    touchPointView.clearTouchPoint(pointerId);
-
-                    // 如果没有触摸点，标记为没有触摸
-                    if (event.getPointerCount() == 1) {
-                        isNoTouch = true;
-                    }
-                    break;
-                }
-                if (!isDragging) {
-
-                    // 如果未拖动，则为点击
-                    // 获取当前时间
-                    long currentTime = System.currentTimeMillis();
-
-                    // 判断是否超过时间间隔
-                    if (currentTime - lastMoveTime >= MOVE_INTERVAL) {
-                        // 计算百分比
-                        double xPercent = event.getX() / back.getWidth();
-                        double yPercent = event.getY() / back.getHeight();
-
-                        // 在子线程中执行网络请求
-                        new Thread(() -> {
-                            try {
-                                if(udp) {
-                                    sendUdp("click:" + xPercent + ":" + yPercent, udphost, udpport);
-                                }else {
-                                    sendClick(xPercent, yPercent);
-                                }
-                                Log.d(TAG, "Clicked");
-                            } catch (IOException e) {
-                                Log.e(TAG, "Network request failed", e);
-                            }
-                        }).start();
-
-                        // 更新上一次调用 sendMove 的时间
-                        lastMoveTime = currentTime;
-                    }
-                } else {
-                    // 如果拖动，则为拖动结束
-                    Log.d(TAG, "Drag ended");
-                }
-                // 清除当前触摸点
-                int pointerId = event.getPointerId(event.getActionIndex());
-                touchPointView.clearTouchPoint(pointerId);
-
-                // 如果没有触摸点，标记为没有触摸
-                if (event.getPointerCount() == 1) {
-                    isNoTouch = true;
-                }
+                ACTION_UP(event);
                 break;
 
             case MotionEvent.ACTION_CANCEL:
                 if (pointerIds.size() == 4) {
                     if (udp) {
-                        sendUdp("tabwin:" + 0 + ":" + 0, udphost, udpport);
+                        sendUdp("tabwin:" + 0 + ":" + 0 +":" + method, udphost, udpport);
                     } else {
                         try {
                             sendTabwin();
@@ -364,6 +181,8 @@ public class MainActivity extends AppCompatActivity {
                 // 清除所有触摸点
                 touchPointView.clearAllTouchPoints();
                 isNoTouch = true; // 标记为没有触摸
+                startBoolean = true;
+                Log.d(TAG, "11111111111111p");
                 break;
         }
         if (pointerIds.size() == 5 && !isSettingActivityLaunched) {
@@ -377,6 +196,208 @@ public class MainActivity extends AppCompatActivity {
         // 返回true表示事件已处理，false表示继续传递事件
         return true;
     }
+    private void ACTION_UP(MotionEvent event) {
+        Log.d(TAG, "Pointer up" + pointerIds.size());
+        if (pointerIds.size() == 2) {
+            float finger1X = Objects.requireNonNull(pointerIds.get(0))[0];
+            float finger1Y = Objects.requireNonNull(pointerIds.get(0))[1];
+            float finger2X = Objects.requireNonNull(pointerIds.get(1))[0];
+            float finger2Y = Objects.requireNonNull(pointerIds.get(1))[1];
+
+            // 计算两个手指之间的距离
+            float distance2 = (float) Math.sqrt(
+                    Math.pow(finger1X - finger2X, 2) +
+                            Math.pow(finger1Y - finger2Y, 2)
+            );
+            Log.d(TAG, "Distance: " + distance2);
+            // 如果距离小于阈值（例如 50 像素），则认为是两个手指靠近点击
+            if (distance2 < 250) {
+                // 计算中心点坐标
+                double xPercent = (Objects.requireNonNull(pointerIds.get(0))[0] + Objects.requireNonNull(pointerIds.get(1))[0]) / 2 / back.getWidth();
+                double yPercent = (Objects.requireNonNull(pointerIds.get(1))[1] + Objects.requireNonNull(pointerIds.get(1))[1]) / 2 / back.getHeight();
+
+                // 在子线程中执行 sendRight
+                new Thread(() -> {
+                    try {
+                        if(udp) {
+                            sendUdp("right:" + xPercent + ":" + yPercent +":" + method, udphost, udpport);
+                        }else {
+                            sendRight(xPercent, yPercent);
+                        }
+                        Log.d(TAG, "Right Clicked");
+                    } catch (IOException e) {
+                        Log.e(TAG, "Network request failed", e);
+                    }
+                }).start();
+            }
+            if(isNoTouch) {
+                touchPointView.clearHistoryPoints();
+                isNoTouch = false;
+                pointerIds = new HashMap<>();
+            }
+            int pointerId = event.getPointerId(event.getActionIndex());
+            touchPointView.clearTouchPoint(pointerId);
+
+            // 如果没有触摸点，标记为没有触摸
+            if (event.getPointerCount() == 1) {
+                isNoTouch = true;
+            }
+            return;
+        }
+        if (!isDragging) {
+            // 如果未拖动，则为点击
+            // 获取当前时间
+            long currentTime = System.currentTimeMillis();
+
+            // 判断是否超过时间间隔
+            if (currentTime - lastMoveTime >= MOVE_INTERVAL) {
+                // 计算百分比
+                double xPercent = event.getX() / back.getWidth();
+                double yPercent = event.getY() / back.getHeight();
+
+                // 在子线程中执行网络请求
+                new Thread(() -> {
+                    try {
+                        if(udp) {
+                            sendUdp("click:" + xPercent + ":" + yPercent+":" + method, udphost, udpport);
+                        }else {
+                            sendClick(xPercent, yPercent);
+                        }
+                        Log.d(TAG, "Clicked");
+                    } catch (IOException e) {
+                        Log.e(TAG, "Network request failed", e);
+                    }
+                }).start();
+
+                // 更新上一次调用 sendMove 的时间
+                lastMoveTime = currentTime;
+            }
+        } else {
+            // 如果拖动，则为拖动结束
+            Log.d(TAG, "Drag ended");
+        }
+        // 清除当前触摸点
+        int pointerId = event.getPointerId(event.getActionIndex());
+        touchPointView.clearTouchPoint(pointerId);
+
+        // 如果没有触摸点，标记为没有触摸
+        if (event.getPointerCount() == 1) {
+            isNoTouch = true;
+        }
+        return;
+    }
+
+    private void ACTION_MOVE(MotionEvent event, int pointerCount) {
+        if (pointerCount == 3) {
+            float[] xPositions = new float[3];
+            float[] yPositions = new float[3];
+            for (int i = 0; i < 3; i++) {
+                xPositions[i] = event.getX(i);
+                yPositions[i] = event.getY(i);
+            }
+
+            float deltaX = xPositions[0] - startX;
+            float deltaY = yPositions[0] - startY;
+
+            if (Math.abs(deltaX) > DRAG_THRESHOLD) {
+                if (deltaX > 0) {
+                    // 向右滑动
+                    new Thread(() -> {
+                        try {
+                            sendWindowRight();
+                        } catch (IOException e) {
+                            Log.e(TAG, "Network request failed", e);
+                        }
+                    }).start();
+                } else {
+                    // 向左滑动
+                    new Thread(() -> {
+                        try {
+                            sendWindowLeft();
+                        } catch (IOException e) {
+                            Log.e(TAG, "Network request failed", e);
+                        }
+                    }).start();
+                }
+            }
+            return;
+        }
+        // 计算移动距离
+        float deltaX = event.getX() - startX;
+        float deltaY = event.getY() - startY;
+        float distance = (float) Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+        // 判断是否拖动
+        if (distance > DRAG_THRESHOLD || method ==4) {
+
+            long currentTime = System.currentTimeMillis();
+
+            if (currentTime - lastMoveTime >= MOVE_INTERVAL) {
+                isDragging = true;
+                if (pointerIds.size() == 2) {
+                    double yPercent = event.getY() / back.getHeight();
+                    if (deltaY > 0) {
+                        yPercent = -yPercent;
+                    }
+                    try {
+                        if(udp) {
+                            sendUdp("dragY:" + yPercent + ":1"+":" + method, udphost, udpport);
+                        }else {sendDragY(yPercent);}
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    pointerIds.clear();
+                    lastMoveTime = currentTime;
+
+                    return;
+                }
+            }
+            // 判断是否超过时间间隔
+            if (currentTime - lastMoveTime >= MOVE_INTERVAL || method ==4) {
+                // 计算百分比
+                double xPercent = event.getX() / back.getWidth();
+                double yPercent = event.getY() / back.getHeight();
+
+                // 在子线程中执行网络请求
+                new Thread(() -> {
+                    try {
+                        if(udp) {
+                            sendUdp("move:" + xPercent + ":" + yPercent+":" + method+":" + startBoolean, udphost, udpport);
+                        }else {
+                            sendMove(xPercent, yPercent);
+                        }
+                        if(startBoolean) {
+                            startBoolean = false;
+                        }
+                    } catch (IOException e) {
+                        Log.e(TAG, "Network request failed", e);
+                    }
+                }).start();
+
+                // 更新上一次调用 sendMove 的时间
+                lastMoveTime = currentTime;
+            }
+
+            Log.d(TAG, "Dragging");
+        }
+        Log.d(TAG, "Movement" + pointerIds.size());
+        return;
+    }
+
+    private void ACTION_DOWN(MotionEvent event) {
+        // 如果没有触摸后再次触摸，清除历史记录
+        if (isNoTouch) {
+            startBoolean = true;
+            touchPointView.clearHistoryPoints();
+            isNoTouch = false;
+        }
+        // 记录按下时的初始位置
+        startX = event.getX();
+        startY = event.getY();
+        isDragging = false;
+        Log.d(TAG, "Pointer down");
+        return;
+    }
 
     @Override
     protected void onResume() {
@@ -387,7 +408,7 @@ public class MainActivity extends AppCompatActivity {
     public void sendMove(double x, double y) throws IOException {
         long currentTime = System.currentTimeMillis();
         Request request = new Request.Builder()
-                .url(host+"/move?x1=" + x + "&y1=" + y)
+                .url(host+"/move?x1=" + x + "&y1=" + y +"&method=" + method + "&startBoolean=" + startBoolean)
                 .build();
         client.newCall(request).enqueue(new okhttp3.Callback() {
 
@@ -410,7 +431,7 @@ public class MainActivity extends AppCompatActivity {
     }
     public void sendClick(double x, double y) throws IOException {
         Request request = new Request.Builder()
-                .url(host+"/click?x1=" + x + "&y1=" + y)
+                .url(host+"/click?x1=" + x + "&y1=" + y +"&method=" + method)
                 .build();
         client.newCall(request).enqueue(new okhttp3.Callback() {
 
@@ -428,7 +449,7 @@ public class MainActivity extends AppCompatActivity {
     }
     public void sendRight(double x, double y) throws IOException {
         Request request = new Request.Builder()
-                .url(host+"/right?x1=" + x + "&y1=" + y)
+                .url(host+"/right?x1=" + x + "&y1=" + y +"&method=" + method)
                 .build();
         client.newCall(request).enqueue(new okhttp3.Callback() {
 
@@ -446,7 +467,7 @@ public class MainActivity extends AppCompatActivity {
     }
     public void sendWindowRight() throws IOException {
         Request request = new Request.Builder()
-                .url(host+"/windowright")
+                .url(host+"/windowright?method=" + method)
                 .build();
         client.newCall(request).enqueue(new okhttp3.Callback() {
 
@@ -463,7 +484,7 @@ public class MainActivity extends AppCompatActivity {
     }
     public void sendWindowLeft() throws IOException {
         Request request = new Request.Builder()
-                .url(host+"/windowleft")
+                .url(host+"/windowleft?method=" + method)
                 .build();
         client.newCall(request).enqueue(new okhttp3.Callback() {
 
@@ -480,7 +501,7 @@ public class MainActivity extends AppCompatActivity {
     }
     public void sendTabwin() throws IOException {
         Request request = new Request.Builder()
-                .url(host+"/tabwin")
+                .url(host+"/tabwin?method=" + method)
                 .build();
         client.newCall(request).enqueue(new okhttp3.Callback() {
 
